@@ -11,7 +11,7 @@ def call_bamboo_api(params):
     return response
 
 
-def get_bamboo_houses():
+def get_bamboo_listings():
     params = {
         "page": 1,
         "size": 10000,
