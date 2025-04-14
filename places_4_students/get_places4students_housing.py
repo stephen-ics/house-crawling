@@ -70,37 +70,71 @@ def parse_house(html):
     bsObj = BeautifulSoup(html, features="html.parser")
 
     address = parse_address(bsObj=bsObj)
+    price = parse_price(bsObj=bsObj)
+    lease_type = parse_lease_types(bsObj=bsObj)
+    print(lease_type)
 
-def parse_text(unformattedText, prefix):
+def clean_text(uncleanedText, prefix):
     pattern = rf'{re.escape(prefix)}\s+(.+)'
-    match = re.search(pattern, unformattedText, re.DOTALL)
+    match = re.search(pattern, uncleanedText, re.DOTALL)
     if match:
         return match.group(1).strip()
-    return None 
+    return None
 
-def parse_address(bsObj):
+def parse_address(bsObj):    
     housingInformation = bsObj.find("div", class_="loaction-container")
 
-    unformattedStreet = housingInformation.find("span", id="MainContent_Label3").parent.get_text()
-    street = parse_text(unformattedStreet, "Address:")
+    uncleanedStreet = housingInformation.find("span", id="MainContent_Label3").parent.get_text()
+    uncleanedCity = housingInformation.find("div", id="MainContent_trCity").get_text()
+    uncleanedProvince = housingInformation.find("div", id="MainContent_trProvince").get_text()
+    uncleanedCountry = housingInformation.find("div", id="MainContent_trCountry").get_text()
+    uncleanedPostalCode = housingInformation.find("div", id="MainContent_trZip").get_text()
 
-    unformattedCity = housingInformation.find("div", id="MainContent_trCity").get_text()
-    city = parse_text(unformattedCity, "City:")
+    street = clean_text(uncleanedStreet, "Address:")
+    city = clean_text(uncleanedCity, "City:")
 
-    unformattedProvince = housingInformation.find("div", id="MainContent_trProvince").get_text()
-    province = parse_text(unformattedProvince, "State/Province:")
+    province = clean_text(uncleanedProvince, "State/Province:")
     if province == "Ontario":
         province = "ON"
 
-    unformattedCountry = housingInformation.find("div", id="MainContent_trCountry").get_text()
-    country = parse_text(unformattedCountry, "Country:")
-
-    unformattedPostalCode = housingInformation.find("div", id="MainContent_trZip").get_text()
-    postalCode = parse_text(unformattedPostalCode, "Zip/Postal Code:")
+    country = clean_text(uncleanedCountry, "Country:")
+    postalCode = clean_text(uncleanedPostalCode, "Zip/Postal Code:")
 
     address = f"{street}, {city}, {province} {postalCode}, {country}"
-    print(address)
+    return address
+
+def format_price(unformattedPrice):
+    match = re.search(r'From:\s*\$([\d,]+\.\d{2})\s*to:\s*\$([\d,]+\.\d{2})', unformattedPrice)
+
+    if match:
+        price_from = match.group(1)
+        price_to = match.group(2)
+
+        if(price_from == price_to):
+            price = price_from
+        else:
+            price = price_from + " - " + price_to
+
+        return price
+
+    return None
+
+def parse_price(bsObj):
+    uncleanedPrice = bsObj.find("div", id="MainContent_trRental").get_text()
+    cleanedPrice = clean_text(uncleanedPrice, "Rental Rate:")
+    price = format_price(cleanedPrice)
+
+    return price
+
+def parse_lease_types(bsObj):
+    uncleanedLeaseType = bsObj.find("div", id="MainContent_trLeaseType").get_text()
+    leaseType = clean_text(uncleanedLeaseType, "Lease Type(s) Offered:")
+    
+    return leaseType
+
 
 response = get_places4students_listings()
 html = parse_listings(response)
 parse_house(html)
+
+# 4 Month Sublet,Apartment/Condo
