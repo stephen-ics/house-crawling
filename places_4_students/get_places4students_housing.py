@@ -3,6 +3,9 @@ from bs4 import BeautifulSoup
 
 import re
 
+from dateutil import parser
+from datetime import date
+
 def call_places4students_listings_api(params, cookies):
     url = "https://www.places4students.com/Places/PropertyListings"
     
@@ -72,7 +75,8 @@ def parse_house(html):
     address = parse_address(bsObj=bsObj)
     price = parse_price(bsObj=bsObj)
     lease_type = parse_lease_types(bsObj=bsObj)
-    print(lease_type)
+    building_type = parse_building_types(bsObj=bsObj)
+    lease_start_date = parse_lease_start_date(bsObj=bsObj)
 
 def clean_text(uncleanedText, prefix):
     pattern = rf'{re.escape(prefix)}\s+(.+)'
@@ -132,6 +136,42 @@ def parse_lease_types(bsObj):
     
     return leaseType
 
+def format_building_type(unformattedBuildingType):
+    if "apartment" in unformattedBuildingType and "condo" in unformattedBuildingType:
+        return "Apartment/Condo"
+    elif "apartment" in unformattedBuildingType:
+        return "Apartment"
+    elif "condo" in unformattedBuildingType:
+        return "Condo"
+    elif "townhouse" in unformattedBuildingType:
+        return "Townhouse"
+    elif "basement apartment" in unformattedBuildingType:
+        return "Basement Apartment"
+    elif "house" in unformattedBuildingType:
+        return "House"
+    else:
+        return None
+
+def parse_building_types(bsObj):
+    uncleanedBuildingType = bsObj.find("span", id="MainContent_Label21").parent.get_text()
+    unformattedBuildingType = clean_text(uncleanedBuildingType, "Type of Accommodation:")
+    buildingType = format_building_type(unformattedBuildingType.lower())
+    
+    return buildingType
+
+def formatDate(date_str):
+    try:
+        parsed_date = parser.parse(date_str)
+        return parsed_date.date()
+    except (ValueError, TypeError):
+        return None
+    
+def parse_lease_start_date(bsObj):
+    uncleanedLeaseStartDate = bsObj.find("span", id="MainContent_Label25").parent.get_text()
+    unformattedLeaseStartDate = clean_text(uncleanedLeaseStartDate, "Occupancy Date:")
+    leaseStartDate = formatDate(unformattedLeaseStartDate)
+
+    return leaseStartDate
 
 response = get_places4students_listings()
 html = parse_listings(response)
