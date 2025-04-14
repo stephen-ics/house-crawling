@@ -56,34 +56,55 @@ def get_places4students_house(housingID):
     response = call_places4students_house_api(params=params, cookies=cookies)
     return response
 
+from urllib.parse import unquote
 def parse_listings(html):
     bsObj = BeautifulSoup(html, features="html.parser")
     listingsTable = bsObj.find("table", class_="StdTable")
-    listing = listingsTable.find("tr", class_="featured")
+    listings = listingsTable.find_all("tr", class_="featured")
 
-    listingDate = listing.find("td", class_="listing-occupancy-date")
-    houseIDElement = listingDate.find("a", href=True)
-    
-    houseID = re.search(r'HousingID=([^&]+)', houseIDElement["href"]).group(1)
+    houses = []
+    # for listing in listings:
+    #     listingDate = listing.find("td", class_="listing-occupancy-date")
+    #     houseIDElement = listingDate.find("a", href=True)
+    #     houseID = re.search(r'HousingID=([^&]+)', houseIDElement["href"]).group(1)
+    #     print(houseID)
+    #     response = get_places4students_house(houseID)
 
-    response = get_places4students_house(houseID)
-    return response.text
+    #     houses.append(response.text)
+    encoded_str = "o08LgOUtZs0%3d"
+    decoded_str = unquote(encoded_str)
+    response = get_places4students_house(decoded_str)
 
-def parse_house(html):
-    bsObj = BeautifulSoup(html, features="html.parser")
+    houses.append(response.text)
+    return houses
 
-    address = parse_address(bsObj=bsObj)
-    price = parse_price(bsObj=bsObj)
-    lease_type = parse_lease_types(bsObj=bsObj)
-    building_type = parse_building_types(bsObj=bsObj)
-    lease_start_date = parse_lease_start_date(bsObj=bsObj)
+def parse_house(houses):
+    for html in houses:
+        bsObj = BeautifulSoup(html, features="html.parser")
+
+        address = parse_address(bsObj=bsObj)
+        price = parse_price(bsObj=bsObj)
+        # lease_type = parse_lease_types(bsObj=bsObj)
+        # building_type = parse_building_types(bsObj=bsObj)
+        # lease_start_date = parse_lease_start_date(bsObj=bsObj)
+
+        print(address)
 
 def clean_text(uncleanedText, prefix):
-    pattern = rf'{re.escape(prefix)}\s+(.+)'
-    match = re.search(pattern, uncleanedText, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return None
+    text = uncleanedText.replace('\xa0', ' ').strip()
+
+    if prefix in text:
+        pattern = rf'{re.escape(prefix)}:?\s*(.+)'
+        m = re.search(pattern, text, re.DOTALL)
+        if m:
+            val = m.group(1).strip()
+            return val or None
+
+    if prefix.lower().endswith('rent'):
+        m = re.search(r'([\$\d,]+\.\d{2})', text)
+        return m.group(1) if m else None
+
+    return text
 
 def parse_address(bsObj):    
     housingInformation = bsObj.find("div", class_="loaction-container")
@@ -107,26 +128,49 @@ def parse_address(bsObj):
     address = f"{street}, {city}, {province} {postalCode}, {country}"
     return address
 
-def format_price(unformattedPrice):
-    match = re.search(r'From:\s*\$([\d,]+\.\d{2})\s*to:\s*\$([\d,]+\.\d{2})', unformattedPrice)
+def format_price(minPrice, maxPrice):
+    if(minPrice == maxPrice):
+        price = minPrice
+    else:
+        price = minPrice + " - " + maxPrice
+
+    return price
+
+def parse_price_type_default(bsObj):
+    uncleanedPrice = bsObj.find("div", id="MainContent_trRental")
+    
+    if uncleanedPrice == None:
+        return None
+
+    cleanedPrice = clean_text(uncleanedPrice, "Rental Rate:")
+
+    match = re.search(r'From:\s*\$([\d,]+\.\d{2})\s*to:\s*\$([\d,]+\.\d{2})', cleanedPrice)
 
     if match:
-        price_from = match.group(1)
-        price_to = match.group(2)
+        minPrice = match.group(1)
+        maxPrice = match.group(2)
+        
+    return [minPrice, maxPrice]
 
-        if(price_from == price_to):
-            price = price_from
-        else:
-            price = price_from + " - " + price_to
+def parse_price_type_apartment(bsObj):
+    uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_1").parent.get_text()
+    uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_1").parent.get_text()
 
-        return price
+    minPrice = clean_text(uncleanedMinPrice, "Min Rent")
+    maxPrice = clean_text(uncleanedMaxPrice, "Max Rent")
 
-    return None
+    return [minPrice, maxPrice]
 
 def parse_price(bsObj):
-    uncleanedPrice = bsObj.find("div", id="MainContent_trRental").get_text()
-    cleanedPrice = clean_text(uncleanedPrice, "Rental Rate:")
-    price = format_price(cleanedPrice)
+    prices = parse_price_type_default(bsObj)
+
+    if(prices == None):
+        prices = parse_price_type_apartment(bsObj)
+
+    minPrice = prices[0]
+    maxPrice = prices[1]
+
+    price = format_price(minPrice, maxPrice)
 
     return price
 
