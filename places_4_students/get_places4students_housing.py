@@ -27,6 +27,31 @@ def get_places4students_listings():
     response = call_places4students_listings_api(params=params, cookies=cookies)
     return response.text
 
+def call_places4students_house_api(params, cookies):
+    url = "https://www.places4students.com/Places/Details"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+    
+    response = requests.get(url, params=params, cookies=cookies, headers=headers)
+    return response 
+
+def get_places4students_house(housingID):
+    params = {
+        "SchoolID": "VBThwOQPAX4="
+    }
+
+    params["housingID"] = housingID
+
+    cookies={
+        "ASP.NET_SessionId": "qmxwdtlxlffde1t3e4s0bff5",
+        "Places4StudentDisclaimer": "Agree",
+        "__AntiXsrfToken": "e24d51e2de26447ca1d222b78e0085b2"
+    }
+
+    response = call_places4students_house_api(params=params, cookies=cookies)
+    return response
 
 def parse_listings(html):
     bsObj = BeautifulSoup(html, features="html.parser")
@@ -44,36 +69,38 @@ def parse_listings(html):
 def parse_house(html):
     bsObj = BeautifulSoup(html, features="html.parser")
 
+    address = parse_address(bsObj=bsObj)
+
+def parse_text(unformattedText, prefix):
+    pattern = rf'{re.escape(prefix)}\s+(.+)'
+    match = re.search(pattern, unformattedText, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return None 
+
+def parse_address(bsObj):
     housingInformation = bsObj.find("div", class_="loaction-container")
 
     unformattedStreet = housingInformation.find("span", id="MainContent_Label3").parent.get_text()
-    street = re.search(r'Address:\s+(.+)', unformattedStreet, re.DOTALL).group(1).strip()
+    street = parse_text(unformattedStreet, "Address:")
 
     unformattedCity = housingInformation.find("div", id="MainContent_trCity").get_text()
-    city = re.search(r'City:\s+(.+)', unformattedCity, re.DOTALL).group(1).strip()
+    city = parse_text(unformattedCity, "City:")
 
     unformattedProvince = housingInformation.find("div", id="MainContent_trProvince").get_text()
-    print(unformattedProvince)
-    match = re.search(r'State/Province:\s*(.+)', unformattedProvince, re.DOTALL)
-    if match:
-        province = match.group(1).strip()
-
-        if(province == "Ontario"):
-            province = "ON"
-    else:
-        province = None
+    province = parse_text(unformattedProvince, "State/Province:")
+    if province == "Ontario":
+        province = "ON"
 
     unformattedCountry = housingInformation.find("div", id="MainContent_trCountry").get_text()
-    country = re.search(r'Country:\s+(.+)', unformattedCountry, re.DOTALL).group(1).strip()
+    country = parse_text(unformattedCountry, "Country:")
 
     unformattedPostalCode = housingInformation.find("div", id="MainContent_trZip").get_text()
-    postalCode = re.search(r'Zip/Postal Code:\s+(.+)', unformattedPostalCode, re.DOTALL).group(1).strip()
+    postalCode = parse_text(unformattedPostalCode, "Zip/Postal Code:")
 
-    address = street + ", " + city + ", " + province + " " + postalCode + ", " + country
+    address = f"{street}, {city}, {province} {postalCode}, {country}"
     print(address)
 
 response = get_places4students_listings()
 html = parse_listings(response)
 parse_house(html)
-
-
