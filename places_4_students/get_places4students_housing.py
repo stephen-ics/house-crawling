@@ -26,3 +26,21 @@ def get_places4students_listings():
 
     response = call_places4students_listings_api(params=params, cookies=cookies)
     return response.text
+
+
+def parse_listings(html):
+    bsObj = BeautifulSoup(html, features="html.parser")
+    listingsTable = bsObj.find("table", class_="StdTable")
+    listing = listingsTable.find("tr", class_="featured")
+
+    listingDate = listing.find("td", class_="listing-occupancy-date")
+    houseIDElement = listingDate.find("a", href=True)
+    
+    houseID = re.search(r'HousingID=([^&]+)', houseIDElement["href"]).group(1)
+
+    response = get_places4students_house(houseID)
+    return response.text
+
+
+
+
