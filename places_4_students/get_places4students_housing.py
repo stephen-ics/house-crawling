@@ -41,6 +41,39 @@ def parse_listings(html):
     response = get_places4students_house(houseID)
     return response.text
 
+def parse_house(html):
+    bsObj = BeautifulSoup(html, features="html.parser")
 
+    housingInformation = bsObj.find("div", class_="loaction-container")
+
+    unformattedStreet = housingInformation.find("span", id="MainContent_Label3").parent.get_text()
+    street = re.search(r'Address:\s+(.+)', unformattedStreet, re.DOTALL).group(1).strip()
+
+    unformattedCity = housingInformation.find("div", id="MainContent_trCity").get_text()
+    city = re.search(r'City:\s+(.+)', unformattedCity, re.DOTALL).group(1).strip()
+
+    unformattedProvince = housingInformation.find("div", id="MainContent_trProvince").get_text()
+    print(unformattedProvince)
+    match = re.search(r'State/Province:\s*(.+)', unformattedProvince, re.DOTALL)
+    if match:
+        province = match.group(1).strip()
+
+        if(province == "Ontario"):
+            province = "ON"
+    else:
+        province = None
+
+    unformattedCountry = housingInformation.find("div", id="MainContent_trCountry").get_text()
+    country = re.search(r'Country:\s+(.+)', unformattedCountry, re.DOTALL).group(1).strip()
+
+    unformattedPostalCode = housingInformation.find("div", id="MainContent_trZip").get_text()
+    postalCode = re.search(r'Zip/Postal Code:\s+(.+)', unformattedPostalCode, re.DOTALL).group(1).strip()
+
+    address = street + ", " + city + ", " + province + " " + postalCode + ", " + country
+    print(address)
+
+response = get_places4students_listings()
+html = parse_listings(response)
+parse_house(html)
 
 
