@@ -1,5 +1,5 @@
-from get_houses import get_bamboo_houses
-from format_data import convert_to_df, save_to_csv
+from bamboo_housing.get_houses import get_bamboo_houses
+from bamboo_housing.format_data import convert_to_df, save_to_csv
 
 response = get_bamboo_houses()
 

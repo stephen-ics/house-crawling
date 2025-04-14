@@ -16,6 +16,6 @@ def convert_to_df(response):
     return df
 
 def save_to_csv(df):
-    output_filename = "listings.csv"
+    output_filename = "bamboo_housing_listings.csv"
     df.to_csv(output_filename, index=False)
 
