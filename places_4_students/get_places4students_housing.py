@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 import re
+import csv
 
 from dateutil import parser
 from datetime import date
@@ -85,6 +86,8 @@ def parse_listings(html):
     return houses
 
 def parse_house(houses):
+    rows = []
+
     for html in houses:
         bsObj = BeautifulSoup(html, features="html.parser")
 
@@ -94,8 +97,35 @@ def parse_house(houses):
         building_type = parse_building_types(bsObj=bsObj)
         lease_start_date = parse_lease_start_date(bsObj=bsObj)
 
+        rows.append({
+            'address': address,
+            'price': price,
+            'lease_type': lease_type,
+            'building_type': building_type,
+            'lease_start_date': lease_start_date
+        })
+
+    return rows
+
+def write_houses_csv(rows, csv_path):
+    if not rows:
+        raise ValueError("No rows to write")
+
+    fieldnames = list(rows[0].keys())
+    with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
 def clean_text(uncleanedText, prefix):
-    text = uncleanedText.replace('\xa0', ' ').strip()
+    raw = uncleanedText
+
+    if hasattr(uncleanedText, 'get_text'):
+        raw = uncleanedText.get_text()
+    else:
+        raw = uncleanedText or ''
+
+    text = raw.replace('\xa0', ' ').strip()
 
     if prefix in text:
         pattern = rf'{re.escape(prefix)}:?\s*(.+)'
@@ -140,6 +170,16 @@ def format_price(minPrice, maxPrice):
 
     return price
 
+import re
+
+def extract_single_price(text):
+    prices = re.findall(r"\$([\d,]+\.\d{2})", text)
+
+    if len(prices) == 1:
+        return prices[0]
+    
+    return None
+
 def parse_price_type_default(bsObj):
     uncleanedPrice = bsObj.find("div", id="MainContent_trRental")
     
@@ -153,15 +193,24 @@ def parse_price_type_default(bsObj):
     if match:
         minPrice = match.group(1)
         maxPrice = match.group(2)
-        
+    else:
+        price = extract_single_price(cleanedPrice)
+        minPrice = price
+        maxPrice = price
+
     return [minPrice, maxPrice]
 
 def parse_price_type_apartment(bsObj):
-    uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_1").parent.get_text()
-    uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_1").parent.get_text()
+    uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_1")
+    if uncleanedMinPrice == None:
+        uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_2")
 
-    minPrice = clean_text(uncleanedMinPrice, "Min Rent")
-    maxPrice = clean_text(uncleanedMaxPrice, "Max Rent")
+    uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_1")
+    if uncleanedMaxPrice == None:
+        uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_2")
+
+    minPrice = clean_text(uncleanedMinPrice.parent.get_text(), "Min Rent")
+    maxPrice = clean_text(uncleanedMaxPrice.parent.get_text(), "Max Rent")
 
     return [minPrice, maxPrice]
 
@@ -200,9 +249,22 @@ def format_building_type(unformattedBuildingType):
     else:
         return None
 
+def parse_building_type_check_condo(bsObj):
+    uncleanedBuildingType = bsObj.find("span", id="MainContent_rptApartment_lblRoomDes_1")
+
+    if uncleanedBuildingType == None:
+        uncleanedBuildingType = bsObj.find("span", id="MainContent_rptApartment_lblRoomDes_2")
+    
+    return uncleanedBuildingType.get_text()
+
 def parse_building_types(bsObj):
-    uncleanedBuildingType = bsObj.find("span", id="MainContent_Label21").parent.get_text()
-    unformattedBuildingType = clean_text(uncleanedBuildingType, "Type of Accommodation:")
+    uncleanedBuildingType = bsObj.find("span", id="MainContent_Label21")
+
+    if uncleanedBuildingType == None:
+        unformattedBuildingType = parse_building_type_check_condo(bsObj)
+    else:
+        unformattedBuildingType = clean_text(uncleanedBuildingType.parent.get_text(), "Type of Accommodation:")
+
     buildingType = format_building_type(unformattedBuildingType.lower())
     
     return buildingType
@@ -243,8 +305,6 @@ def parse_lease_start_date_apartment(bsObj):
 def parse_lease_start_date(bsObj):
     uncleanedLeaseStartDate = parse_lease_start_date_default(bsObj)
 
-    print(getHousingID(bsObj))
-
     if uncleanedLeaseStartDate == None:
         uncleanedLeaseStartDate = parse_lease_start_date_apartment(bsObj)
 
@@ -254,8 +314,16 @@ def parse_lease_start_date(bsObj):
 
     return leaseStartDate
 
+def getHousingID(bsObj):
+    houseIDElement = bsObj.find("a", id="MainContent_lnkIAgree")
+    match = re.search(r'HousingID=(.+?)(?:%26|$)', houseIDElement["href"])
+
+    if match == None:
+        return None
+    
+    return match.group(1)
+
 response = get_places4students_listings()
 html = parse_listings(response)
-parse_house(html)
-
-# 4 Month Sublet,Apartment/Condo
+rows = parse_house(html)
+write_houses_csv(rows, "places4students.csv")
