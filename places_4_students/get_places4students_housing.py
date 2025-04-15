@@ -63,19 +63,25 @@ def parse_listings(html):
     listings = listingsTable.find_all("tr", class_="featured")
 
     houses = []
-    # for listing in listings:
-    #     listingDate = listing.find("td", class_="listing-occupancy-date")
-    #     houseIDElement = listingDate.find("a", href=True)
-    #     houseID = re.search(r'HousingID=([^&]+)', houseIDElement["href"]).group(1)
-    #     print(houseID)
-    #     response = get_places4students_house(houseID)
+    for listing in listings:
+        listingDate = listing.find("td", class_="listing-occupancy-date")
+        houseIDElement = listingDate.find("a", href=True)
 
-    #     houses.append(response.text)
-    encoded_str = "o08LgOUtZs0%3d"
-    decoded_str = unquote(encoded_str)
-    response = get_places4students_house(decoded_str)
+        match = re.search(r'HousingID=([^&]+)', houseIDElement["href"])
+        
+        if match == None:
+            continue
 
-    houses.append(response.text)
+        houseID = match.group(1)
+        response = get_places4students_house(houseID)
+
+        houses.append(response.text)
+
+    # encoded_str = "ffcjxLkRTN0%3d"
+    # decoded_str = unquote(encoded_str)
+    # response = get_places4students_house(decoded_str)
+    # houses.append(response.text)
+
     return houses
 
 def parse_house(houses):
@@ -84,11 +90,9 @@ def parse_house(houses):
 
         address = parse_address(bsObj=bsObj)
         price = parse_price(bsObj=bsObj)
-        # lease_type = parse_lease_types(bsObj=bsObj)
-        # building_type = parse_building_types(bsObj=bsObj)
-        # lease_start_date = parse_lease_start_date(bsObj=bsObj)
-
-        print(address)
+        lease_type = parse_lease_types(bsObj=bsObj)
+        building_type = parse_building_types(bsObj=bsObj)
+        lease_start_date = parse_lease_start_date(bsObj=bsObj)
 
 def clean_text(uncleanedText, prefix):
     text = uncleanedText.replace('\xa0', ' ').strip()
@@ -205,14 +209,47 @@ def parse_building_types(bsObj):
 
 def formatDate(date_str):
     try:
+        if date_str.lower() == "immediately":
+            return "Immediately"
+        elif "contact" in date_str.lower():
+            return "Contact for more details"
+
         parsed_date = parser.parse(date_str)
         return parsed_date.date()
     except (ValueError, TypeError):
         return None
     
+def parse_lease_start_date_default(bsObj):
+    uncleanedLeaseStartDate = bsObj.find("span", id="MainContent_Label25")
+
+   
+
+    if uncleanedLeaseStartDate == None:
+        return None
+    
+    return uncleanedLeaseStartDate.parent.get_text()
+
+def parse_lease_start_date_apartment(bsObj):
+    uncleanedLeaseStartDate = bsObj.find("span", id="MainContent_rptApartment_Label24_1")
+
+    if uncleanedLeaseStartDate == None:
+        uncleanedLeaseStartDate = bsObj.find("span", id="MainContent_rptApartment_Label24_0")
+
+    if uncleanedLeaseStartDate == None:
+        return None
+    
+    return uncleanedLeaseStartDate.parent.get_text()
+
 def parse_lease_start_date(bsObj):
-    uncleanedLeaseStartDate = bsObj.find("span", id="MainContent_Label25").parent.get_text()
-    unformattedLeaseStartDate = clean_text(uncleanedLeaseStartDate, "Occupancy Date:")
+    uncleanedLeaseStartDate = parse_lease_start_date_default(bsObj)
+
+    print(getHousingID(bsObj))
+
+    if uncleanedLeaseStartDate == None:
+        uncleanedLeaseStartDate = parse_lease_start_date_apartment(bsObj)
+
+    unformattedLeaseStartDate = clean_text(uncleanedLeaseStartDate, "Occupancy Date")
+
     leaseStartDate = formatDate(unformattedLeaseStartDate)
 
     return leaseStartDate
