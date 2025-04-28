@@ -1,5 +1,5 @@
 import re
-from utils import clean_text
+from utils import clean_text, getHousingID
 
 def parse_price(bsObj):
     prices = parse_price_type_default(bsObj)
@@ -35,11 +35,15 @@ def parse_price_type_default(bsObj):
     return [minPrice, maxPrice]
 
 def parse_price_type_apartment(bsObj):
-    uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_1")
+    uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_0")
+    if uncleanedMinPrice == None:
+        uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_1")
     if uncleanedMinPrice == None:
         uncleanedMinPrice = bsObj.find("span", id="MainContent_rptApartment_Label4_2")
 
-    uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_1")
+    uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_0")
+    if uncleanedMaxPrice == None:
+        uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_1")
     if uncleanedMaxPrice == None:
         uncleanedMaxPrice = bsObj.find("span", id="MainContent_rptApartment_Label8_2")
 

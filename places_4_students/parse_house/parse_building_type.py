@@ -1,4 +1,4 @@
-from utils import clean_text
+from utils import clean_text, getHousingID
 
 def parse_building_types(bsObj):
     uncleanedBuildingType = bsObj.find("span", id="MainContent_Label21")
@@ -13,11 +13,13 @@ def parse_building_types(bsObj):
     return buildingType
 
 def parse_building_type_check_condo(bsObj):
-    uncleanedBuildingType = bsObj.find("span", id="MainContent_rptApartment_lblRoomDes_1")
+    uncleanedBuildingType = bsObj.find("span", id="MainContent_rptApartment_lblRoomDes_0")
 
     if uncleanedBuildingType == None:
+        uncleanedBuildingType = bsObj.find("span", id="MainContent_rptApartment_lblRoomDes_1")
+    if uncleanedBuildingType == None:
         uncleanedBuildingType = bsObj.find("span", id="MainContent_rptApartment_lblRoomDes_2")
-    
+
     return uncleanedBuildingType.get_text()
 
 def format_building_type(unformattedBuildingType):
