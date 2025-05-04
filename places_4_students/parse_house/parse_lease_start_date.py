@@ -11,7 +11,7 @@ def parse_lease_start_date(bsObj):
 
     unformattedLeaseStartDate = clean_text(uncleanedLeaseStartDate, "Occupancy Date")
 
-    leaseStartDate = formatDate(unformattedLeaseStartDate)
+    leaseStartDate = format_date(unformattedLeaseStartDate)
 
     return leaseStartDate
     
@@ -34,7 +34,7 @@ def parse_lease_start_date_apartment(bsObj):
     
     return uncleanedLeaseStartDate.parent.get_text()
 
-def formatDate(date_str):
+def format_date(date_str):
     try:
         if date_str.lower() == "immediately":
             return "Immediately"
