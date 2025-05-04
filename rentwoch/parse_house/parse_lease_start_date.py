@@ -1,4 +1,3 @@
-from bs4 import BeautifulSoup
 from dateutil import parser
 
 def parse_lease_start_date(bsObj):

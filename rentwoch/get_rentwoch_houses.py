@@ -48,9 +48,23 @@ def call_listing_api(listing_url):
     response = requests.get(listing_url, headers=headers)
     return response.text
 
+
+
+
 html = get_rentwoch_listings()
 links = parse_listing_links(html=html)
 
-link_1 = links[0]
-html = call_listing_api(link_1)
-parse_house(html)
+for link in links:
+    html = call_listing_api(link)
+
+    parse_house(html)
+
+
+# Title (optional, null default) --> GOOD!
+# Address → Mandatory --> GOOD!
+# Price → Mandatory --> GOOD!
+# Lease_type (optional, null default) --> NULL
+# Building_type (optional, null default) --> NULL
+# Lease_start_date (optional, null default) --> GOOD!
+# Lease_term (optional, null default) --> will find
+# Link → Mandatory --> GOOD!
